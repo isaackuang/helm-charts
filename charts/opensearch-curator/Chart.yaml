@@ -1,0 +1,11 @@
+apiVersion: v1
+appVersion: "0.1.0"
+description: A Helm chart for Opensearch Curator
+name: opensearch-curator
+version: 1.0.0
+keywords:
+- curator
+- opensearch
+- opensearch-curator
+sources:
+- https://github.com/isaackuang/docker-opensearch-curator

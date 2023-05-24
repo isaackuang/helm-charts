@@ -1,0 +1,125 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ template "opensearch-curator.fullname" . }}
+  labels:
+    app: {{ template "opensearch-curator.name" . }}
+    chart: {{ template "opensearch-curator.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+{{- if .Values.cronjob.labels }}
+{{ toYaml .Values.cronjob.labels | indent 4 }}
+{{- end }}
+{{- if .Values.cronjob.annotations }}
+  annotations:
+{{ toYaml .Values.cronjob.annotations | indent 4 }}
+{{- end }}
+spec:
+  schedule: "{{ .Values.cronjob.schedule | default "0 1 * * *" }}"
+  {{- with .Values.cronjob.concurrencyPolicy }}
+  concurrencyPolicy: {{ . }}
+  {{- end }}
+  {{- with .Values.cronjob.failedJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ . }}
+  {{- end }}
+  {{- with .Values.cronjob.successfulJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ . }}
+  {{- end }}
+  {{- with .Values.cronjob.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ . }}
+  {{- end }}
+  jobTemplate:
+    metadata:
+      labels:
+        app: {{ template "opensearch-curator.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      template:
+        metadata:
+          labels:
+            app: {{ template "opensearch-curator.name" . }}
+            release: {{ .Release.Name }}
+{{- if .Values.pod.labels }}
+{{ toYaml .Values.pod.labels | indent 12 }}
+{{- end }}
+{{- if .Values.pod.annotations }}
+          annotations:
+{{ toYaml .Values.pod.annotations | indent 12 }}
+{{- end }}
+        spec:
+          volumes:
+            - name: config-volume
+              configMap:
+                name: {{ template "opensearch-curator.fullname" . }}-config
+{{- if .Values.extraVolumes }}
+{{ toYaml .Values.extraVolumes | indent 12 }}
+{{- end }}
+          restartPolicy: {{ .Values.cronjob.jobRestartPolicy }}
+{{- if .Values.priorityClassName }}
+          priorityClassName: "{{ .Values.priorityClassName }}"
+{{- end }}
+{{- if .Values.image.pullSecret }}
+          imagePullSecrets:
+            - name: {{ .Values.image.pullSecret }}
+{{- end }}
+{{- if .Values.extraInitContainers }}
+          initContainers:
+{{- range $key, $value := .Values.extraInitContainers }}
+          - name: "{{ $key }}"
+{{ toYaml $value | indent 12 }}
+{{- end }}
+{{- end }}
+          serviceAccountName: {{ .Values.serviceAccountName }}
+          containers:
+            - name: {{ .Chart.Name }}
+              image: "{{ .Values.image.repository | default "isaackuang/opensearch-curator" }}:{{ .Values.image.tag | default "v0.1.0" }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy | default "Always"}}
+              volumeMounts:
+                - name: config-volume
+                  mountPath: /etc/es-curator
+{{- if .Values.extraVolumeMounts }}
+{{ toYaml .Values.extraVolumeMounts | indent 16 }}
+{{ end }}
+{{ if .Values.command }}
+              command:
+{{ toYaml .Values.command | indent 16 }}
+{{- end }}
+{{- if .Values.dryrun }}
+              args: [ "--dry-run", "--config", "/etc/es-curator/config.yml", "/etc/es-curator/action_file.yml" ]
+{{- else }}
+              args: [ "--config", "/etc/es-curator/config.yml", "/etc/es-curator/action_file.yml" ]
+{{- end }}
+              env:
+{{- if .Values.envFromSecrets }}
+{{- range $key,$value := .Values.envFromSecrets }}
+              - name: {{ $key | upper | quote}}
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ $value.from.secret | quote}}
+                    key: {{ $value.from.key | quote}}
+{{- end }}
+{{- end }}
+{{- if .Values.env }}
+{{- range $key,$value := .Values.env }}
+              - name: {{ $key | upper | quote}}
+                value: {{ $value | quote}}
+{{- end }}
+{{- end }}
+              resources:
+{{ toYaml .Values.resources | indent 16 }}
+    {{- with .Values.nodeSelector }}
+          nodeSelector:
+{{ toYaml . | indent 12 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+          affinity:
+{{ toYaml . | indent 12 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+          tolerations:
+{{ toYaml . | indent 12 }}
+    {{- end }}
+    {{- with .Values.securityContext }}
+          securityContext:
+{{ toYaml . | indent 12 }}
+    {{- end }}

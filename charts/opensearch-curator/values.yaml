@@ -1,0 +1,117 @@
+# Default values for opensearch-curator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+serviceAccountName: default
+
+cronjob:
+  # At 01:00 every day
+  schedule: "0 1 * * *"
+  annotations: {}
+  labels: {}
+  concurrencyPolicy: ""
+  failedJobsHistoryLimit: ""
+  successfulJobsHistoryLimit: ""
+  jobRestartPolicy: Never
+  startingDeadlineSeconds: ""
+
+pod:
+  annotations: {}
+  labels: {}
+
+podAnnotations: {}
+
+image:
+  repository: isaackuang/opensearch-curator
+  tag: v0.1.0
+  pullPolicy: Always
+
+# run curator in dry-run mode
+dryrun: false
+
+env: {}
+
+envFromSecrets: {}
+#   elastic_username:
+#       from:
+#         secret: elastic-credentials
+#         key: username
+#   elastic_password:
+#       from:
+#         secret: elastic-credentials
+#         key: password
+
+configMaps:
+  # Delete indices older than 7 days
+  action_file_yml: |-
+    ---
+    actions:
+      1:
+        action: delete_indices
+        description: "Clean up ES by deleting old indices"
+        options:
+          timeout_override:
+          continue_if_exception: False
+          disable_action: False
+          ignore_empty_list: True
+        filters:
+        - filtertype: age
+          source: name
+          direction: older
+          timestring: '%Y.%m.%d'
+          unit: days
+          unit_count: 32
+          field:
+          stats_result:
+          epoch:
+          exclude: False
+  # Having config_yaml WILL override the other config
+  config_yml: |-
+    ---
+    client:
+      hosts:
+        - opensearch.example.com
+      port: 443
+      # url_prefix:
+      # username: elasticsearch
+      # password: password
+      use_ssl: True
+      timeout: 30
+      aws_auth: True
+      region: ap-northeast-1
+      service: es
+    logging:
+      loglevel: INFO
+      logfile:
+      logformat: json
+      blacklist: ['opensearch', 'urllib3']
+
+nodeSelector: {}
+
+tolerations: {}
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+   cpu: 100m
+   memory: 128Mi
+  requests:
+   cpu: 30m
+   memory: 128Mi
+
+priorityClassName: ""
+
+# extraVolumes and extraVolumeMounts allows you to mount other volumes
+# Example Use Case: mount ssl certificates when opensearch has tls enabled
+# extraVolumes:
+#   - name: elastic-certificate-pem
+#     secret:
+#       defaultMode: 420
+#       secretName: elastic-certificate-pem
+# extraVolumeMounts:
+#   - name: elastic-certificate-pem
+#     mountPath: /usr/share/kibana/config/certs
+#     readOnly: true
